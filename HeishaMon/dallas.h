@@ -11,6 +11,7 @@ struct dallasDataStruct {
   unsigned long lastgoodtime = 0;
   DeviceAddress sensor;
   char address[17];
+  char alias[32] = "NOT SET";
 };
 
 void resetlastalldatatime_dallas();
