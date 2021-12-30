@@ -226,9 +226,9 @@ void log_message(char* string)
   rawtime = time(NULL);
   struct tm *timeinfo = localtime(&rawtime);
   char timestring[32];
-  strftime(timestring,32,"%c",timeinfo);
+  strftime(timestring, 32, "%c", timeinfo);
   char log_line[320];
-  sprintf(log_line,"%s (%lu): %s",timestring,millis(),string);
+  sprintf(log_line, "%s (%lu): %s", timestring, millis(), string);
 
   if (heishamonSettings.logSerial1) {
     Serial1.println(log_line);
@@ -322,14 +322,14 @@ bool readSerial()
 
       if (data_length == DATASIZE) { //decode the normal data
         decode_heatpump_data(data, actData, mqtt_client, log_message, heishamonSettings.mqtt_topic_base, heishamonSettings.updateAllTime);
-        memcpy(actData,data,DATASIZE);
+        memcpy(actData, data, DATASIZE);
         data_length = 0;
         return true;
       }
       else if (data_length == OPTDATASIZE ) { //optional pcb acknowledge answer
         log_message((char*)"Received optional PCB ack answer. Decoding this in OPT topics.");
         decode_optional_heatpump_data(data, actOptData, mqtt_client, log_message, heishamonSettings.mqtt_topic_base, heishamonSettings.updateAllTime);
-        memcpy(actOptData,data,OPTDATASIZE);
+        memcpy(actOptData, data, OPTDATASIZE);
         data_length = 0;
         return true;
       }
@@ -475,6 +475,8 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
           log_message((char*)"Debug URL requested");
         } else if (strcmp((char *)dat, "/wifiscan") == 0) {
           client->route = 50;
+        } else if (strcmp((char *)dat, "/dallasalias") == 0) {
+          client->route = 60;
         } else if (strcmp((char *)dat, "/togglelog") == 0) {
           client->route = 1;
           log_message((char*)"Toggled mqtt log flag");
@@ -536,6 +538,12 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
               } else if (strcmp((char *)args->name, "s0") == 0) {
                 client->route = 12;
               }
+            } break;
+          case 60: {
+              sprintf_P(log_msg, PSTR("Dallas alias changed address %s to alias %s"), args->name, args->value);
+              log_message(log_msg);
+              changeDallasAlias((char *)args->name, (char *)args->value);
+              return 0;
             } break;
           case 100: {
               unsigned char cmd[256] = { 0 };
@@ -629,6 +637,9 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
             } break;
           case 50: {
               return handleWifiScan(client);
+            } break;
+          case 60: {
+              return 0;
             } break;
           case 80: {
               return handleSettings(client);
