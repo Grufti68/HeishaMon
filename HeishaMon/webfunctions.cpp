@@ -988,58 +988,58 @@ int handleJsonOutput(struct webserver_t *client, char* actData) {
   if (client->content == 0) {
     webserver_send(client, 200, (char *)"application/json", 0);
     webserver_send_content_P(client, PSTR("{\"heatpump\":["), 13);
-  } else if (client->content < NUMBER_OF_TOPICS + 1) {
-    uint8_t topic = client->content - 1;
+  } else if (client->content < (NUMBER_OF_TOPICS * 2) + 1) {
+    uint8_t topic = (client->content - 1 ) / 2;
 
-    webserver_send_content_P(client, PSTR("{\"Topic\":\"TOP"), 13);
-
+    if (client->content % 2 ) //send first part in first chunk, make use of 1=true and because content=1 at first pass this results in the first chunk
     {
-      char str[12];
-      itoa(topic, str, 10);
-      webserver_send_content(client, str, strlen(str));
+      webserver_send_content_P(client, PSTR("{\"Topic\":\"TOP"), 13);
+      {
+        char str[12];
+        itoa(topic, str, 10);
+        webserver_send_content(client, str, strlen(str));
+      }
+      webserver_send_content_P(client, PSTR("\",\"Name\":\""), 10);
+      webserver_send_content_P(client, topics[topic], strlen_P(topics[topic]));
+      webserver_send_content_P(client, PSTR("\",\"Value\":\""), 11);
+
     }
-
-    webserver_send_content_P(client, PSTR("\",\"Name\":\""), 10);
-
-    webserver_send_content_P(client, topics[topic], strlen_P(topics[topic]));
-
-    webserver_send_content_P(client, PSTR("\",\"Value\":\""), 11);
-
+    else
     {
-      String dataValue = actData[0] == '\0' ? "" :getDataValue(actData, topic);
-      char* str = (char *)dataValue.c_str();
-      webserver_send_content(client, str, strlen(str));
+      {
+        String dataValue = actData[0] == '\0' ? "" : getDataValue(actData, topic);
+        char* str = (char *)dataValue.c_str();
+        webserver_send_content(client, str, strlen(str));
+      }
+      webserver_send_content_P(client, PSTR("\",\"Description\":\""), 17);
+      int maxvalue = atoi(topicDescription[topic][0]);
+      int value = actData[0] == '\0' ? 0 : getDataValue(actData, topic).toInt();
+      if (maxvalue == 0) { //this takes the special case where the description is a real value description instead of a mode, so value should take first index (= 0 + 1)
+        value = 0;
+      }
+      if ((value < 0) || (value > maxvalue)) {
+        webserver_send_content_P(client, _unknown, strlen_P(_unknown));
+      }
+      else {
+        webserver_send_content_P(client, topicDescription[topic][value + 1], strlen_P(topicDescription[topic][value + 1]));
+      }
+
+      webserver_send_content_P(client, PSTR("\"}"), 2);
+
+      if (topic < NUMBER_OF_TOPICS - 1) {
+        webserver_send_content_P(client, PSTR(","), 1);
+      }
     }
 
-    webserver_send_content_P(client, PSTR("\",\"Description\":\""), 17);
-
-    int maxvalue = atoi(topicDescription[topic][0]);
-    int value = actData[0] == '\0' ? 0 : getDataValue(actData, topic).toInt();
-    if (maxvalue == 0) { //this takes the special case where the description is a real value description instead of a mode, so value should take first index (= 0 + 1)
-      value = 0;
-    }
-    if ((value < 0) || (value > maxvalue)) {
-      webserver_send_content_P(client, _unknown, strlen_P(_unknown));
-    }
-    else {
-      webserver_send_content_P(client, topicDescription[topic][value + 1], strlen_P(topicDescription[topic][value + 1]));
-    }
-
-    webserver_send_content_P(client, PSTR("\"}"), 2);
-
-    if (topic < NUMBER_OF_TOPICS - 1) {
-      webserver_send_content_P(client, PSTR(","), 1);
-    }
-
-  } else if (client->content == NUMBER_OF_TOPICS + 1) {
+  } else if (client->content == (NUMBER_OF_TOPICS * 2) + 1) {
     webserver_send_content_P(client, PSTR("],\"1wire\":"), 10);
 
     dallasJsonOutput(client);
-  } else if (client->content == NUMBER_OF_TOPICS + 2) {
+  } else if (client->content == (NUMBER_OF_TOPICS * 2) + 2) {
     webserver_send_content_P(client, PSTR(",\"s0\":"), 6);
 
     s0JsonOutput(client);
-  } else if (client->content == NUMBER_OF_TOPICS + 3) {
+  } else if (client->content == (NUMBER_OF_TOPICS * 2) + 3) {
     {
       String dataValue = jsonStats();
       char* str = (char *)dataValue.c_str();
