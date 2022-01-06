@@ -12,6 +12,7 @@
 #include "gpio.h"
 
 void log_message(char* string);
+String jsonStats();
 
 static IPAddress apIP(192, 168, 4, 1);
 

@@ -324,14 +324,14 @@ bool readSerial()
 
       if (data_length == DATASIZE) { //decode the normal data
         decode_heatpump_data(data, actData, mqtt_client, log_message, heishamonSettings.mqtt_topic_base, heishamonSettings.updateAllTime);
-        memcpy(actData,data,DATASIZE);
+        memcpy(actData, data, DATASIZE);
         data_length = 0;
         return true;
       }
       else if (data_length == OPTDATASIZE ) { //optional pcb acknowledge answer
         log_message((char*)"Received optional PCB ack answer. Decoding this in OPT topics.");
         decode_optional_heatpump_data(data, actOptData, mqtt_client, log_message, heishamonSettings.mqtt_topic_base, heishamonSettings.updateAllTime);
-        memcpy(actOptData,data,OPTDATASIZE);
+        memcpy(actOptData, data, OPTDATASIZE);
         data_length = 0;
         return true;
       }
@@ -466,8 +466,6 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
     case WEBSERVER_CLIENT_REQUEST_URI: {
         if (strcmp((char *)dat, "/") == 0) {
           client->route = 1;
-        } else if (strcmp((char *)dat, "/tablerefresh") == 0) {
-          client->route = 10;
         } else if (strcmp((char *)dat, "/json") == 0) {
           client->route = 20;
         } else if (strcmp((char *)dat, "/reboot") == 0) {
@@ -614,11 +612,6 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
             } break;
           case 1: {
               return handleRoot(client, readpercentage, mqttReconnects, &heishamonSettings);
-            } break;
-          case 10:
-          case 11:
-          case 12: {
-              return handleTableRefresh(client, actData);
             } break;
           case 20: {
               return handleJsonOutput(client, actData);
@@ -922,6 +915,41 @@ void read_panasonic_data() {
   if ( (heishamonSettings.listenonly || sending) && (Serial.available() > 0)) readSerial();
 }
 
+String jsonStats() {
+  String stats = F("{\"uptime\":");
+  stats += millis();
+  stats += F(",\"uptime string\":\"");
+  char *up = getUptime();
+  stats += up;
+  free(up);
+  stats += F("\",\"voltage\":");
+  stats += ESP.getVcc() / 1024.0;
+  stats += F(",\"free memory\":");
+  stats += getFreeMemory();
+  stats += F(",\"free heap\":");
+  stats += ESP.getFreeHeap();
+  stats += F(",\"wifi\":");
+  stats += getWifiQuality();
+  stats += F(",\"mqtt reconnects\":");
+  stats += mqttReconnects;
+  stats += F(",\"total reads\":");
+  stats += totalreads;
+  stats += F(",\"good reads\":");
+  stats += goodreads;
+  stats += F(",\"bad crc reads\":");
+  stats += badcrcread;
+  stats += F(",\"bad header reads\":");
+  stats += badheaderread;
+  stats += F(",\"too short reads\":");
+  stats += tooshortread;
+  stats += F(",\"too long reads\":");
+  stats += toolongread;
+  stats += F(",\"timeout reads\":");
+  stats += timeoutread;
+  stats += F("}");
+  return stats;
+}
+
 void loop() {
   webserver_loop();
 
@@ -978,35 +1006,9 @@ void loop() {
     message += F("%");
     log_message((char*)message.c_str());
 
-    String stats = F("{\"uptime\":");
-    stats += String(millis());
-    stats += F(",\"voltage\":");
-    stats += ESP.getVcc() / 1024.0;
-    stats += F(",\"free memory\":");
-    stats += getFreeMemory();
-    stats += F(",\"free heap\":");
-    stats += ESP.getFreeHeap();
-    stats += F(",\"wifi\":");
-    stats += getWifiQuality();
-    stats += F(",\"mqtt reconnects\":");
-    stats += mqttReconnects;
-    stats += F(",\"total reads\":");
-    stats += totalreads;
-    stats += F(",\"good reads\":");
-    stats += goodreads;
-    stats += F(",\"bad crc reads\":");
-    stats += badcrcread;
-    stats += F(",\"bad header reads\":");
-    stats += badheaderread;
-    stats += F(",\"too short reads\":");
-    stats += tooshortread;
-    stats += F(",\"too long reads\":");
-    stats += toolongread;
-    stats += F(",\"timeout reads\":");
-    stats += timeoutread;
-    stats += F("}");
+    String dataValue = jsonStats();
     sprintf(mqtt_topic, "%s/stats", heishamonSettings.mqtt_topic_base);
-    mqtt_client.publish(mqtt_topic, stats.c_str(), MQTT_RETAIN_VALUES);
+    mqtt_client.publish(mqtt_topic, dataValue.c_str(), MQTT_RETAIN_VALUES);
 
     //get new data
     if (!heishamonSettings.listenonly) send_panasonic_query();

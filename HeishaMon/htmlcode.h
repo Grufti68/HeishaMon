@@ -62,62 +62,70 @@ static const char websocketJS[] PROGMEM =
 
 static const char refreshJS[] PROGMEM =
   "<script>"
-  " let timeout;"
   " document.body.onload=function() {"
   "    openTable('Heatpump');"
   "    document.getElementById(\"cli\").value = \"\";"
   "    startWebsockets();"
   " };"
-  " function loadContent(id, url, func) {"
+  " function loadContentJson() {"
   "   var xhr = new XMLHttpRequest();"
-  "   xhr.open('GET', url, true);"
+  "   xhr.open('GET', '/json', true);"
   "   xhr.send();"
   "   xhr.onload = function() {"
   "     if(xhr.status == 200) {"
-  "       let obj = document.getElementById(id);"
-  "       if(obj) {"
-  "         obj.innerHTML = xhr.responseText;"
-  "         func();"
+  "       var data = JSON.parse(xhr.responseText);"
+  "       let heishavalues = document.getElementById('heishavalues');"
+  "       if(heishavalues) {"
+  "         heishavalues.innerHTML = \"\";"
+  "         data.heatpump.forEach(function(object) {"
+  "           var tr = document.createElement('tr');"
+  "           tr.innerHTML = '<td>' + object.Topic + '</td><td>' + object.Name + '</td><td>' + object.Value + '</td><td>' + object.Description + '</td>';"
+  "           heishavalues.appendChild(tr);"
+  "         });"
   "       }"
+  "       let dallasvalues = document.getElementById('dallasvalues');"
+  "       if(dallasvalues) {"
+  "         dallasvalues.innerHTML = \"\";"
+  "         data[\"1wire\"].forEach(function(object) {"
+  "           var tr = document.createElement('tr');"
+  "           tr.innerHTML = '<td>' + object.Sensor + '</td><td>' + object.Temperature + '</td>';"
+  "           dallasvalues.appendChild(tr);"
+  "         });"
+  "       }"
+  "       let s0values = document.getElementById('s0values');"
+  "       if(s0values) {"
+  "         s0values.innerHTML = \"\";"
+  "         data.s0.forEach(function(object) {"
+  "           var tr = document.createElement('tr');"
+  "           tr.innerHTML = '<td>' + object[\"S0 port\"] + '</td><td>' + object.Watt + '</td><td>' + object.Watthour + '</td><td>' + object.WatthourTotal + '</td><td>' + object.PulseQuality + '</td><td>' + object.AvgPulseWidth + '</td>';"
+  "           s0values.appendChild(tr);"
+  "         });"
+  "       }"
+  "       document.getElementById('wifi').innerHTML = data.stats.wifi + \"%\";"
+  "       document.getElementById('freememory').innerHTML = data.stats[\"free memory\"] + \"%\";"
+  "       var percentageGoodReceived = data.stats[\"good reads\"] != 0 ? data.stats[\"total reads\"] / data.stats[\"good reads\"] : 0;"
+  "       document.getElementById('datareceived').innerHTML =  percentageGoodReceived + \"%\";"
+  "       document.getElementById('mqttreconnects').innerHTML = data.stats[\"mqtt reconnects\"];"
+  "       document.getElementById('uptime').innerHTML = data.stats[\"uptime string\"];"
   "     }"
   "   }"
   " }"
-
-  " function refreshTable(tableName){"
-  "   switch(tableName) {"
-  "     case 'Heatpump':"
-  "       loadContent('heishavalues', '/tablerefresh', function(){});"
-  "       break;"
-  "     case 'S0':"
-  "       loadContent('s0values', '/tablerefresh?s0', function(){});"
-  "       break;"
-  "     case 'Dallas':"
-  "       loadContent('dallasvalues', '/tablerefresh?1wire', function()"
-  "         {"
-  "           var dallas_elements = document.getElementsByClassName(\"dallas_alias\");" 
-  "           for (var i = 0; i < dallas_elements.length; i++) {"
-  "               dallas_elements[i].addEventListener('blur', dallasAliasEdit, false);"
-  "           }"
-  "         });"
-  "       break;"
-  "     default:"
-  "       break;"
-  "   }"
-  "  clearTimeout(timeout);"
-  "  timeout=setTimeout(refreshTable, 30000, tableName);"
+  " function refreshTable(){"
+  "  loadContentJson();"
+  "  setTimeout(refreshTable, 30000);"
   "  }"
   "</script>";
 
 static const char selectJS[] PROGMEM =
   "<script>"
   "function openTable(tableName) {"
-  "  refreshTable(tableName);"
   "  var i;"
   "  var x = document.getElementsByClassName(\"heishatable\");"
   "  for (i = 0; i < x.length; i++) {"
   "    x[i].style.display = \"none\";"
   "  }"
   "  document.getElementById(tableName).style.display = \"block\";"
+  "  refreshTable();"
   "}"
   "</script>";
 
@@ -197,11 +205,12 @@ static const char webBodyRootConsoleTab[] PROGMEM = "<button class=\"w3-bar-item
 
 static const char webBodyEndDiv[] PROGMEM = "</div>";
 
-static const char webBodyRootStatusWifi[] PROGMEM =   "<div class=\"w3-container w3-left\"><br>Wifi signal: ";
-static const char webBodyRootStatusMemory[] PROGMEM =   "%<br>Memory free: ";
-static const char webBodyRootStatusReceived[] PROGMEM =  "%<br>Correct received data: ";
-static const char webBodyRootStatusReconnects[] PROGMEM =  "%<br>MQTT reconnects: ";
-static const char webBodyRootStatusUptime[] PROGMEM =   "<br>Uptime: ";
+static const char webBodyRootStatusWifi[] PROGMEM =   "<div class=\"w3-container w3-left\"><br>Wifi signal: <span id=\"wifi\">";
+static const char webBodyRootStatusMemory[] PROGMEM =   "%</span><br>Memory free: <span id=\"freememory\">";
+static const char webBodyRootStatusReceived[] PROGMEM =  "%</span><br>Correct received data: <span id=\"datareceived\">";
+static const char webBodyRootStatusReconnects[] PROGMEM =  "%</span><br>MQTT reconnects: <span id=\"mqttreconnects\">";
+static const char webBodyRootStatusUptime[] PROGMEM =   "</span><br>Uptime: <span id=\"uptime\">";
+static const char webBodyRootStatusEndDiv[] PROGMEM = "</span></div>";
 
 static const char webBodyRootHeatpumpValues[] PROGMEM =
   "<div id=\"Heatpump\" class=\"w3-container w3-center heishatable\">"
