@@ -27,6 +27,7 @@ static struct websettings_t *websettings = NULL;
 static uint8_t ntpservers = 0;
 
 void log_message(char* string);
+String jsonStats();
 
 int dBmToQuality(int dBm) {
   if (dBm == 31)
@@ -962,7 +963,7 @@ int handleRoot(struct webserver_t *client, float readpercentage, int mqttReconne
         free(up);
       } break;
     case 5: {
-        webserver_send_content_P(client, webBodyEndDiv, strlen_P(webBodyEndDiv));
+        webserver_send_content_P(client, webBodyRootStatusEndDiv, strlen_P(webBodyRootStatusEndDiv));
         webserver_send_content_P(client, webBodyRootHeatpumpValues, strlen_P(webBodyRootHeatpumpValues));
         if (heishamonSettings->use_1wire) {
           webserver_send_content_P(client, webBodyRootDallasValues, strlen_P(webBodyRootDallasValues));
@@ -983,118 +984,53 @@ int handleRoot(struct webserver_t *client, float readpercentage, int mqttReconne
   return 0;
 }
 
-int handleTableRefresh(struct webserver_t *client, char* actData) {
-  int ret = 0;
-
-  if (client->route == 11) {
-    if (client->content == 0) {
-      webserver_send(client, 200, (char *)"text/html", 0);
-      dallasTableOutput(client);
-    }
-  } else if (client->route == 12) {
-    if (client->content == 0) {
-      webserver_send(client, 200, (char *)"text/html", 0);
-      s0TableOutput(client);
-    }
-  } else if (client->route == 10) {
-    if (client->content == 0) {
-      webserver_send(client, 200, (char *)"text/html", 0);
-    }
-    if (client->content < NUMBER_OF_TOPICS) {
-      for (uint8_t topic = client->content; topic < NUMBER_OF_TOPICS && topic < client->content + 4; topic++) {
-
-        webserver_send_content_P(client, PSTR("<tr><td>TOP"), 11);
-
-        char str[12];
-        itoa(topic, str, 10);
-        webserver_send_content(client, str, strlen(str));
-
-        webserver_send_content_P(client, PSTR("</td><td>"), 9);
-        webserver_send_content_P(client, topics[topic], strlen_P(topics[topic]));
-        webserver_send_content_P(client, PSTR("</td><td>"), 9);
-
-        {
-          String dataValue = actData[0] == '\0' ? "" : getDataValue(actData, topic);
-          char* str = (char *)dataValue.c_str();
-          webserver_send_content(client, str, strlen(str));
-        }
-
-        webserver_send_content_P(client, PSTR("</td><td>"), 9);
-
-        int maxvalue = atoi(topicDescription[topic][0]);
-        int value = actData[0] == '\0' ? 0 : getDataValue(actData, topic).toInt();
-        if (maxvalue == 0) { //this takes the special case where the description is a real value description instead of a mode, so value should take first index (= 0 + 1)
-          value = 0;
-        }
-        if ((value < 0) || (value > maxvalue)) {
-          webserver_send_content_P(client, _unknown, strlen_P(_unknown));
-        }
-        else {
-          webserver_send_content_P(client, topicDescription[topic][value + 1], strlen_P(topicDescription[topic][value + 1]));
-
-        }
-
-        webserver_send_content_P(client, PSTR("</td></tr>"), 10);
-      }
-      // The webserver also increases by 1
-      client->content += 3;
-    }
-  }
-  return 0;
-}
-
 int handleJsonOutput(struct webserver_t *client, char* actData) {
   if (client->content == 0) {
     webserver_send(client, 200, (char *)"application/json", 0);
     webserver_send_content_P(client, PSTR("{\"heatpump\":["), 13);
-  } else if (client->content < NUMBER_OF_TOPICS) {
-    for (uint8_t topic = client->content - 1; topic < NUMBER_OF_TOPICS && topic < client->content + 4 ; topic++) {
+  } else if (client->content < NUMBER_OF_TOPICS + 1) {
+    uint8_t topic = client->content - 1;
 
-      webserver_send_content_P(client, PSTR("{\"Topic\":\"TOP"), 13);
+    webserver_send_content_P(client, PSTR("{\"Topic\":\"TOP"), 13);
 
-      {
-        char str[12];
-        itoa(topic, str, 10);
-        webserver_send_content(client, str, strlen(str));
-      }
-
-      webserver_send_content_P(client, PSTR("\",\"Name\":\""), 10);
-
-      webserver_send_content_P(client, topics[topic], strlen_P(topics[topic]));
-
-      webserver_send_content_P(client, PSTR("\",\"Value\":\""), 11);
-
-      {
-        String dataValue = getDataValue(actData, topic);
-        char* str = (char *)dataValue.c_str();
-        webserver_send_content(client, str, strlen(str));
-      }
-
-      webserver_send_content_P(client, PSTR("\",\"Description\":\""), 17);
-
-      int maxvalue = atoi(topicDescription[topic][0]);
-      int value = actData[0] == '\0' ? 0 : getDataValue(actData, topic).toInt();
-      if (maxvalue == 0) { //this takes the special case where the description is a real value description instead of a mode, so value should take first index (= 0 + 1)
-        value = 0;
-      }
-      if ((value < 0) || (value > maxvalue)) {
-        webserver_send_content_P(client, _unknown, strlen_P(_unknown));
-      }
-      else {
-        webserver_send_content_P(client, topicDescription[topic][value + 1], strlen_P(topicDescription[topic][value + 1]));
-      }
-
-      webserver_send_content_P(client, PSTR("\"}"), 2);
-
-      if (topic < NUMBER_OF_TOPICS - 1) {
-        webserver_send_content_P(client, PSTR(","), 1);
-      }
+    {
+      char str[12];
+      itoa(topic, str, 10);
+      webserver_send_content(client, str, strlen(str));
     }
-    // The webserver also increases by 1
-    client->content += 3;
-    if (client->content > NUMBER_OF_TOPICS) {
-      client->content = NUMBER_OF_TOPICS;
+
+    webserver_send_content_P(client, PSTR("\",\"Name\":\""), 10);
+
+    webserver_send_content_P(client, topics[topic], strlen_P(topics[topic]));
+
+    webserver_send_content_P(client, PSTR("\",\"Value\":\""), 11);
+
+    {
+      String dataValue = actData[0] == '\0' ? "" :getDataValue(actData, topic);
+      char* str = (char *)dataValue.c_str();
+      webserver_send_content(client, str, strlen(str));
     }
+
+    webserver_send_content_P(client, PSTR("\",\"Description\":\""), 17);
+
+    int maxvalue = atoi(topicDescription[topic][0]);
+    int value = actData[0] == '\0' ? 0 : getDataValue(actData, topic).toInt();
+    if (maxvalue == 0) { //this takes the special case where the description is a real value description instead of a mode, so value should take first index (= 0 + 1)
+      value = 0;
+    }
+    if ((value < 0) || (value > maxvalue)) {
+      webserver_send_content_P(client, _unknown, strlen_P(_unknown));
+    }
+    else {
+      webserver_send_content_P(client, topicDescription[topic][value + 1], strlen_P(topicDescription[topic][value + 1]));
+    }
+
+    webserver_send_content_P(client, PSTR("\"}"), 2);
+
+    if (topic < NUMBER_OF_TOPICS - 1) {
+      webserver_send_content_P(client, PSTR(","), 1);
+    }
+
   } else if (client->content == NUMBER_OF_TOPICS + 1) {
     webserver_send_content_P(client, PSTR("],\"1wire\":"), 10);
 
@@ -1103,7 +1039,13 @@ int handleJsonOutput(struct webserver_t *client, char* actData) {
     webserver_send_content_P(client, PSTR(",\"s0\":"), 6);
 
     s0JsonOutput(client);
-
+  } else if (client->content == NUMBER_OF_TOPICS + 3) {
+    {
+      String dataValue = jsonStats();
+      char* str = (char *)dataValue.c_str();
+      webserver_send_content_P(client, PSTR(",\"stats\":"), 9);
+      webserver_send_content(client, str, strlen(str));
+    }
     webserver_send_content_P(client, PSTR("}"), 1);
   }
   return 0;
