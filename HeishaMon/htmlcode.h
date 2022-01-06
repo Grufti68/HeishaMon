@@ -103,7 +103,7 @@ static const char refreshJS[] PROGMEM =
   "       }"
   "       document.getElementById('wifi').innerHTML = data.stats.wifi + \"%\";"
   "       document.getElementById('freememory').innerHTML = data.stats[\"free memory\"] + \"%\";"
-  "       var percentageGoodReceived = data.stats[\"good reads\"] != 0 ? data.stats[\"total reads\"] / data.stats[\"good reads\"] : 0;"
+  "       var percentageGoodReceived = data.stats[\"total reads\"] != 0 ? Math.round(data.stats[\"good reads\"] / data.stats[\"total reads\"] * 100) : 0;"
   "       document.getElementById('datareceived').innerHTML =  percentageGoodReceived + \"%\";"
   "       document.getElementById('mqttreconnects').innerHTML = data.stats[\"mqtt reconnects\"];"
   "       document.getElementById('uptime').innerHTML = data.stats[\"uptime string\"];"
