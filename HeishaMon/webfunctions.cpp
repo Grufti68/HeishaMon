@@ -189,11 +189,11 @@ void loadSettings(settingsStruct *heishamonSettings) {
         configFile.readBytes(buf.get(), size);
         DynamicJsonDocument jsonDoc(1024);
         DeserializationError error = deserializeJson(jsonDoc, buf.get());
-        char log_msg[512];
-        serializeJson(jsonDoc, log_msg);
-        log_message(log_msg);
+        //char log_msg[512];
+        //serializeJson(jsonDoc, log_msg);
+        //log_message(log_msg);
         if (!error) {
-          log_message((char *)"\nparsed json");
+          log_message((char *)"parsed json");
           //read updated parameters, make sure no overflow
           if ( jsonDoc["wifi_ssid"] ) strncpy(heishamonSettings->wifi_ssid, jsonDoc["wifi_ssid"], sizeof(heishamonSettings->wifi_ssid));
           if ( jsonDoc["wifi_password"] ) strncpy(heishamonSettings->wifi_password, jsonDoc["wifi_password"], sizeof(heishamonSettings->wifi_password));

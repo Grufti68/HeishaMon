@@ -227,9 +227,9 @@ void log_message(char* string)
   struct tm *timeinfo = localtime(&rawtime);
   char timestring[32];
   strftime(timestring, 32, "%c", timeinfo);
-  size_t len = strlen(string) + strlen(timestring) + 20; //+20 long enough to contain millis()
-  char* log_line = (char *) malloc(len);
-  snprintf(log_line, len, "%s (%lu): %s", timestring, millis(), string);
+  size_t len = snprintf_P(NULL, 0, PSTR("%s (%lu): %s"), timestring, millis(), string);
+  char* log_line = (char *) malloc(len + 1);
+  snprintf_P(log_line, len + 1, PSTR("%s (%lu): %s"), timestring, millis(), string);
 
   if (heishamonSettings.logSerial1) {
     Serial1.println(log_line);
@@ -237,7 +237,7 @@ void log_message(char* string)
   if (heishamonSettings.logMqtt && mqtt_client.connected())
   {
     char log_topic[256];
-    sprintf(log_topic, "%s/%s", heishamonSettings.mqtt_topic_base, mqtt_logtopic);
+    snprintf_P(log_topic, 256, PSTR("%s/%s"), heishamonSettings.mqtt_topic_base, mqtt_logtopic);
 
     if (!mqtt_client.publish(log_topic, log_line)) {
       if (heishamonSettings.logSerial1) {
@@ -248,10 +248,14 @@ void log_message(char* string)
       mqtt_client.disconnect();
     }
   }
-  if (webSocket.connectedClients() > 0) {
-    webSocket.broadcastTXT(log_line, strlen(log_line));
-  }
   free(log_line);
+  if (webSocket.connectedClients() > 0) {
+    size_t len = snprintf_P(NULL, 0, PSTR("{\"log\": {\"timestamp\": \"%s\", \"uptime\": %lu, \"text\": \"%s\"}}"), timestring, millis(), string);
+    char* log_line = (char *) malloc(len + 1);
+    snprintf_P(log_line, len + 1, PSTR("{\"log\": {\"timestamp\": \"%s\", \"uptime\": %lu, \"text\": \"%s\"}}"), timestring, millis(), string);
+    webSocket.broadcastTXT(log_line, len);
+    free(log_line);
+  }
 }
 
 void logHex(char *hex, byte hex_len) {
@@ -260,9 +264,9 @@ void logHex(char *hex, byte hex_len) {
     char buffer [(LOGHEXBYTESPERLINE * 3) + 1];
     buffer[LOGHEXBYTESPERLINE * 3] = '\0';
     for (int j = 0; ((j < LOGHEXBYTESPERLINE) && ((i + j) < hex_len)); j++) {
-      sprintf(&buffer[3 * j], "%02X ", hex[i + j]);
+      sprintf_P(&buffer[3 * j], PSTR("%02X "), hex[i + j]);
     }
-    sprintf(log_msg, "data: %s", buffer ); log_message(log_msg);
+    sprintf_P(log_msg, PSTR("data: %s"), buffer ); log_message(log_msg);
   }
 }
 
@@ -915,6 +919,10 @@ void read_panasonic_data() {
   if ( (heishamonSettings.listenonly || sending) && (Serial.available() > 0)) readSerial();
 }
 
+void updateData(char* source, char* value) {
+  
+}
+
 String jsonStats() {
   String stats = F("{\"uptime\":");
   stats += millis();
@@ -1009,6 +1017,13 @@ void loop() {
     String dataValue = jsonStats();
     sprintf(mqtt_topic, "%s/stats", heishamonSettings.mqtt_topic_base);
     mqtt_client.publish(mqtt_topic, dataValue.c_str(), MQTT_RETAIN_VALUES);
+    if (webSocket.connectedClients() > 0) {
+      size_t len = snprintf_P(NULL, 0, PSTR("{\"stats\": %s}"), dataValue.c_str());
+      char* json_line = (char *) malloc(len + 1);
+      snprintf_P(json_line, len + 1, PSTR("{\"stats\": %s}"), dataValue.c_str());
+      webSocket.broadcastTXT(json_line, len);
+      free(json_line);
+    }
 
     //get new data
     if (!heishamonSettings.listenonly) send_panasonic_query();
