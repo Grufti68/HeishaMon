@@ -919,8 +919,63 @@ void read_panasonic_data() {
   if ( (heishamonSettings.listenonly || sending) && (Serial.available() > 0)) readSerial();
 }
 
-void updateData(char* source, char* value) {
-  
+
+void updateData(dataSource source, char* item, char* value) {
+  updateData(source, item, 0, value);
+}
+void updateData(dataSource source, char* item, int itemNum, char* value) {
+  if (mqtt_client.connected()) {
+    switch (source) {
+      case HEATPUMP: {
+          size_t len = snprintf_P(NULL, 0, PSTR("%s/%s/%s"), heishamonSettings.mqtt_topic_base, mqtt_topic_values, item);
+          char* mqtt_topic = (char *) malloc(len + 1);
+          snprintf_P(mqtt_topic, len + 1, PSTR("%s/%s/%s"), heishamonSettings.mqtt_topic_base, mqtt_topic_values, item);
+          mqtt_client.publish(mqtt_topic, value, MQTT_RETAIN_VALUES);
+          free(mqtt_topic);
+        } break;
+      case OPTIONAL: {
+          size_t len = snprintf_P(NULL, 0, PSTR("%s/%s/%s"), heishamonSettings.mqtt_topic_base, mqtt_topic_values, item);
+          char* mqtt_topic = (char *) malloc(len + 1);
+          snprintf_P(mqtt_topic, len + 1, PSTR("%s/%s/%s"), heishamonSettings.mqtt_topic_base, mqtt_topic_pcbvalues, item);
+          mqtt_client.publish(mqtt_topic, value, MQTT_RETAIN_VALUES);
+          free(mqtt_topic);
+        } break;
+      case ONEWIRE: {
+          size_t len = snprintf_P(NULL, 0, PSTR("%s/%s/%s"), heishamonSettings.mqtt_topic_base, mqtt_topic_values, item);
+          char* mqtt_topic = (char *) malloc(len + 1);
+          snprintf_P(mqtt_topic, len + 1, PSTR("%s/%s/%s"), heishamonSettings.mqtt_topic_base, mqtt_topic_1wire, item);
+          mqtt_client.publish(mqtt_topic, value, MQTT_RETAIN_VALUES);
+          free(mqtt_topic);
+        } break;
+      case S0: {
+          size_t len = snprintf_P(NULL, 0, PSTR("%s/%s/%s/%d"), heishamonSettings.mqtt_topic_base, mqtt_topic_s0, item, itemNum);
+          char* mqtt_topic = (char *) malloc(len + 1);
+          snprintf_P(mqtt_topic, len + 1, PSTR("%s/%s/%s/%d"), heishamonSettings.mqtt_topic_base, mqtt_topic_s0, item, itemNum);
+          mqtt_client.publish(mqtt_topic, value, MQTT_RETAIN_VALUES);
+          free(mqtt_topic);
+        } break;
+      default: break;
+    }
+  }
+  if (webSocket.connectedClients() > 0) {
+    switch (source) {
+      case HEATPUMP: {
+
+        } break;
+      case OPTIONAL: {
+
+        } break;
+      case ONEWIRE: {
+
+        } break;
+      case S0: {
+
+        } break;
+      default: break;
+    }
+
+  }
+
 }
 
 String jsonStats() {

@@ -13,6 +13,8 @@ extern byte panasonicQuery[PANASONICQUERYSIZE];
 #define OPTIONALPCBSAVETIME 300 //save each 5 minutes the current optional pcb state into flash to have valid values during reboot
 extern byte optionalPCBQuery[OPTIONALPCBQUERYSIZE];
 
+enum dataSource { HEATPUMP, OPTIONAL, ONEWIRE, S0};
+
 extern const char* mqtt_topic_values;
 extern const char* mqtt_topic_commands;
 extern const char* mqtt_topic_pcbvalues;
